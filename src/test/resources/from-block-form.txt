@@ -1,0 +1,52 @@
+component: string {title="Title", defaultValue="direct"} [
+    "direct" : "Direct" {
+        destinationId: string {title="Destination ID"};
+    },
+    "timer" : "Timer" {
+        pollingType: string {title="Polling Type", defaultValue="INTERVAL"} [
+            "INTERVAL": "Interval" {
+                intervalExpression: number {title="Expression"};
+            },
+            "CRON": "CRON" {
+                cronExpression: string {title="Expression"};
+            }
+        ];
+    },
+    "channel" : "Channel" {
+        channelId : string {title="Channel ID"};
+        requestMethod : string {title="Request Method"};
+        requestUri : string {title="Request URI"};
+        requestParams : string {title="Request Parameters"};
+        requestHeaders : string {title="Request Headers"};
+        responseHeaders : string {title="Response Headers"};
+    },
+    "msgBox" : "Message Box" {
+        pollingType: string {title="Polling Type", defaultValue="INTERVAL"} [
+            "INTERVAL": "Interval" {
+                intervalExpression: number {title="Expression"};
+            },
+            "CRON": "CRON" {
+                cronExpression: string {title="Expression"};
+            }
+        ];
+        numRetry: number {title="Number of Retry"};
+    },
+    "ftp" : "FTP"
+];
+id: string {title="ID"};
+autoStart: boolean {title="Auto Start", defaultValue="true"} [
+    true {
+        trueField: string;
+    },
+    false {
+        falseField: string;
+    }
+];
+startOrder: number {title="Start Order"} [
+    1 {
+        oneField: string;
+    },
+    2 {
+        twoField: string;
+    }
+];

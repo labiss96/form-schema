@@ -9,3 +9,4 @@ field3: string [
         subfield3: string;
     }
 ];
+field4: string #enums1;

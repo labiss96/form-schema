@@ -1,0 +1,193 @@
+options {
+  STATIC = false;
+  JAVA_UNICODE_ESCAPE = true;
+}
+
+PARSER_BEGIN(FormSchemaParser)
+package form.parser;
+import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
+import java.util.HashMap;
+import form.ast.Enum;
+import form.ast.Field;
+import form.ast.Field.DefaultField;
+import form.ast.Type;
+
+public class FormSchemaParser {
+}
+PARSER_END(FormSchemaParser)
+
+SKIP : /* WHITE SPACE */
+{
+  " " | "\t" | "\n" | "\r" | "\f"
+}
+
+SPECIAL_TOKEN : /* COMMENTS */
+{
+  <SINGLE_LINE_COMMENT: "//" (~["\n","\r"])* ("\n"|"\r"|"\r\n")>
+| <MULTI_LINE_COMMENT: "/*" (~["*"])* "*" ("*" | (~["*","/"] (~["*"])* "*"))* "/">
+}
+
+/* RESERVED WORDS AND LITERALS */
+TOKEN :
+{
+  < STRING_T: "string" >
+| < NUMBER_T: "number" >
+| < BOOLEAN_T: "boolean" >
+}
+
+TOKEN : /* SEPARATORS */
+{
+  < LPAREN: "(" >
+| < RPAREN: ")" >
+| < LBRACE: "{" >
+| < RBRACE: "}" >
+| < LBRACKET: "[" >
+| < RBRACKET: "]" >
+| < SEMICOLON: ";" >
+| < COLON: ":" >
+| < COMMA: "," >
+| < SHARP: "#" >
+| < DOLLAR: "$" >
+}
+
+TOKEN:
+{
+    < BOOLEAN: ("true" | "false") >
+}
+
+TOKEN : /* IDENTIFIERS */
+{
+  < IDENT: <LETTER> (<LETTER>|<DIGIT>)* >
+|
+  < NUMBER: ( <DIGIT> )+ >
+|
+  < #LETTER:
+      ["\u0024","\u0041"-"\u005a","\u005f","\u0061"-"\u007a","\u00c0"-"\u00d6",
+       "\u00d8"-"\u00f6","\u00f8"-"\u00ff","\u0100"-"\u1fff","\u3040"-"\u318f",
+       "\u3300"-"\u337f","\u3400"-"\u3d2d","\u4e00"-"\u9fff","\uf900"-"\ufaff"
+      ]
+  >
+|
+  < #DIGIT:
+      ["\u0030"-"\u0039","\u0660"-"\u0669","\u06f0"-"\u06f9","\u0966"-"\u096f",
+       "\u09e6"-"\u09ef","\u0a66"-"\u0a6f","\u0ae6"-"\u0aef","\u0b66"-"\u0b6f",
+       "\u0be7"-"\u0bef","\u0c66"-"\u0c6f","\u0ce6"-"\u0cef","\u0d66"-"\u0d6f",
+       "\u0e50"-"\u0e59","\u0ed0"-"\u0ed9","\u1040"-"\u1049"
+      ]
+  >
+|
+  <STRING: "\"" ( (~["\"","\\"]) | ("\\" ( ["n","t","b","r","f","\\","\""] ) ) )* "\"">
+}
+
+/*
+Schema := Form
+Form := ( Field ";" )+
+Field := <IDENT> ":" Type [ "{" Option ( "," Option )* "}" ] [ Enums | EnumsRef ]
+Type := "string" | "number" | "boolean"
+Option := <IDENT> "=" <STRING>
+Enums := "[" Enum ( "," Enum )* "]"
+Enum := StringEnum | NumberEnum | BooleanEnum
+StringEnum := <STRING> [ ":" <STRING> ] [ ( "{" Form "}" ) | FormRef ]
+NumberEnum := <NUMBER> [ ":" <STRING> ] [ ( "{" Form "}" ) | FormRef ]
+BooleanEnum := <BOOLEAN> [ ( "{" Form "}" ) | FormRef ]
+EnumsRef := "#" <IDENT>
+FormRef := "$" <IDENT>
+*/
+
+List<Field> schema() :
+{ List<Field> form;}
+{
+    form = form() <EOF>
+    { return form; }
+}
+
+// Form := ( Field ";" )+
+List<Field> form() :
+{List<Field> l = new ArrayList(); Field field = null; }
+{
+    (field = field() { l.add(field); } ";")+
+    { return l; }
+}
+
+//Field := <IDENT> ":" Type [ "{" Option ( "," Option )* "}" ] [ Enums | EnumsRef ]
+Field field() :
+{Token t; Type ty; Map<String, String> o = new HashMap(); List<Enum> e; String er; DefaultField f = new DefaultField(); }
+{
+    t=<IDENT> ":" ty=type() [ "{" option(o) ("," option(o))* "}"] [ e=enums() { f.enumList= e; } | er=enumRef() { f.enumsRef=er; } ]
+    {f.id=t.image; f.type=ty; f.option=o; return f; }
+}
+
+//Type := "string" | "number" | "boolean"
+Type type() :
+{ Token t; }
+{
+    ( t="string" | t="number" | t="boolean" )
+    { return Type.getType(t.image); }
+}
+
+//Option := <IDENT> "=" <STRING>
+void option(Map<String, String> o) :
+{ Token k; Token s; }
+{
+    ( k=<IDENT> "=" s=<STRING> { o.put(k.image, s.image); } )
+}
+
+//Enums := "[" Enum ( "," Enum )* "]"
+List<Enum> enums() :
+{ List<Enum> enums = new ArrayList(); }
+{
+    ("[" _enum(enums) ( "," _enum(enums) )* "]")
+    { return enums; }
+}
+
+//Enum := StringEnum | NumberEnum | BooleanEnum
+void _enum(List<Enum> enums) :
+{ Enum e; }
+{
+    (e=stringEnum() | e=numberEnum() | e=booleanEnum())
+    { enums.add(e); }
+}
+
+//StringEnum := <STRING> [ ":" <STRING> ] [ ( "{" Form "}" ) | FormRef ]
+Enum.StringEnum stringEnum() :
+{ Token key; Token n; List<Field> f; String fr;  Enum.StringEnum e = new Enum.StringEnum(); }
+{
+    ( key=<STRING> [ ":" n=<STRING> { e.name=n.image; } ] [ ("{" f=form() "}") { e.form=f; } | fr=formRef() { e.formRef=fr; } ])
+    { e.key=key.image; return e; }
+}
+
+//NumberEnum := <NUMBER> [ ":" <STRING> ] [ ( "{" Form "}" ) | FormRef ]
+Enum.NumberEnum numberEnum() :
+{ Token key; Token n; List<Field> f; String fr; Enum.NumberEnum e = new Enum.NumberEnum(); }
+{
+    ( key=<NUMBER> [ ":" n=<STRING> { e.name=n.image; } ] [ ("{" f=form() "}") { e.form=f; } | fr=formRef() { e.formRef=fr; } ])
+    { e.key=Integer.parseInt(key.image); return e; }
+}
+
+//BooleanEnum := <BOOLEAN> [ ( "{" Form "}" ) | FormRef ]
+Enum.BooleanEnum booleanEnum() :
+{ Token key; List<Field> f; String fr; Enum.BooleanEnum e = new Enum.BooleanEnum(); }
+{
+    ( key=<BOOLEAN> [ ("{" f=form() "}") { e.form=f; } | fr=formRef() { e.formRef=fr; } ])
+    { e.key=Boolean.parseBoolean(key.image); return e; }
+}
+
+//EnumsRef := "#" <IDENT>
+String enumRef() :
+{ Token t; }
+{
+    "#" t=<IDENT>
+    { return t.image; }
+}
+
+//FormRef := "$" <IDENT>
+String formRef() :
+{ Token t; }
+{
+    "$" t=<IDENT>
+    { return t.image; }
+}
+
+
