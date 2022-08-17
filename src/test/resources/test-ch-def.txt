@@ -1,0 +1,16 @@
+ch1: "Channel-1" (
+    field1: string;
+    field2: number {title="Title", mandatory="true"};
+),
+ch2: "Channel-2" (
+    field3: string [
+        "s1" {
+            subfield1: string;
+            subfield2: string;
+        },
+        "s2":"ssss" {
+            subfield3: string;
+        }
+    ];
+),
+ch3: "Channel-3"

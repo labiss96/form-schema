@@ -5,8 +5,6 @@ field3: string [
         subfield1: string;
         subfield2: string;
     },
-    "s2":"ssss" {
-        subfield3: string;
-    }
+    "s2":"ssss" @form1
 ];
 field4: string #enums1;

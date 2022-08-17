@@ -13,21 +13,13 @@ public abstract class Field {
         public Map<String, String> option;
         public List<Enum> enumList;
         public String enumsRef;
+        public String parentId;
+        public String parentValue;
+
 
         @Override
         public void accept(FieldVisitor visitor) {
             visitor.visit(this);
-        }
-
-        @Override
-        public String toString() {
-            return "Field{" +
-                    "id='" + id + '\'' +
-                    ", type=" + type +
-                    ", option=" + option +
-                    ", enumList=" + enumList +
-                    ", enumsRef='" + enumsRef + '\'' +
-                    '}';
         }
     }
 }

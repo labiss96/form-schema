@@ -3,21 +3,22 @@ options {
   JAVA_UNICODE_ESCAPE = true;
 }
 
-PARSER_BEGIN(FormSchemaParser)
-package form.parser;
+PARSER_BEGIN(ChannelDefParser)
+package form.channel;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.HashMap;
+import form.ast.Channel;
 import form.ast.Enum;
 import form.ast.Field;
 import form.ast.Field.DefaultField;
 import form.ast.StringUtils;
 import form.ast.Type;
 
-public class FormSchemaParser {
+public class ChannelDefParser {
 }
-PARSER_END(FormSchemaParser)
+PARSER_END(ChannelDefParser)
 
 SKIP : /* WHITE SPACE */
 {
@@ -80,7 +81,8 @@ TOKEN : /* IDENTIFIERS */
 }
 
 /*
-Schema := Form
+Channels := Channel ( "," Channel )*
+Channel := <IDENT> ":" <STRING> [ "(" Form ")" ]
 Form := ( Field ";" )+
 Field := <IDENT> ":" Type [ "{" Option ( "," Option )* "}" ] [ Enums | EnumsRef ]
 Type := "string" | "number" | "boolean"
@@ -91,12 +93,20 @@ EnumsRef := "#" <IDENT>
 FormRef := "@" <IDENT>
 */
 
-// Schema := Form
-List<Field> schema() :
-{ List<Field> l;}
+//Channels := Channel ( "," Channel )*
+List<Channel> channels() :
+{ List<Channel> chs = new ArrayList(); Channel ch;}
 {
-    l = form(null, null) <EOF>
-    { return l; }
+    ch=channel() { chs.add(ch); } ( "," ch=channel() { chs.add(ch); })* <EOF>
+    { return chs; }
+}
+
+//Channel := <IDENT> ":" <STRING> [ "(" Form ")" ]
+Channel channel() :
+{ Token t; Token cn; List<Field> f; Channel ch = new Channel(); }
+{
+    t=<IDENT> ":" cn=<STRING> [ "(" f=form(null, null) {ch.form=f;} ")" ]
+    { ch.id=t.image; ch.name=StringUtils.unquote(cn.image); return ch;}
 }
 
 // Form := ( Field ";" )+
@@ -161,5 +171,3 @@ String formRef() :
     "@" t=<IDENT>
     { return t.image; }
 }
-
-
