@@ -6,15 +6,9 @@ options {
 PARSER_BEGIN(ChannelDefParser)
 package form.channel;
 import java.util.List;
-import java.util.Map;
 import java.util.ArrayList;
-import java.util.HashMap;
 import form.ast.Channel;
-import form.ast.Enum;
-import form.ast.Field;
-import form.ast.Field.DefaultField;
 import form.ast.StringUtils;
-import form.ast.Type;
 
 public class ChannelDefParser {
 }
@@ -31,29 +25,20 @@ SPECIAL_TOKEN : /* COMMENTS */
 | <MULTI_LINE_COMMENT: "/*" (~["*"])* "*" ("*" | (~["*","/"] (~["*"])* "*"))* "/">
 }
 
-/* RESERVED WORDS AND LITERALS */
-TOKEN :
-{
-  < ENUM: "enum" >
-| < STRING_T: "string" >
-| < NUMBER_T: "number" >
-| < BOOLEAN: "boolean" >
+TOKEN: {
+    <START_FORM: "("> : IN_FORM_CONTENT
+}
+<IN_FORM_CONTENT> TOKEN: {
+    <TEXT: ~[")"]>
+}
+<IN_FORM_CONTENT> TOKEN : {
+    <END_FORM: ")">: DEFAULT
 }
 
 TOKEN : /* SEPARATORS */
 {
-  < LPAREN: "(" >
-| < RPAREN: ")" >
-| < LBRACE: "{" >
-| < RBRACE: "}" >
-| < LBRACKET: "[" >
-| < RBRACKET: "]" >
-| < SEMICOLON: ";" >
-| < COLON: ":" >
+< COLON: ":" >
 | < COMMA: "," >
-| < SHARP: "#" >
-| < DOLLAR: "$" >
-| < AT: "@" >
 }
 
 TOKEN : /* IDENTIFIERS */
@@ -83,14 +68,7 @@ TOKEN : /* IDENTIFIERS */
 /*
 Channels := Channel ( "," Channel )*
 Channel := <IDENT> ":" <STRING> [ "(" Form ")" ]
-Form := ( Field ";" )+
-Field := <IDENT> ":" Type [ "{" Option ( "," Option )* "}" ] [ Enums | EnumsRef ]
-Type := "string" | "number" | "boolean"
-Option := <IDENT> "=" <STRING>
-Enums := "[" Enum ( "," Enum )* "]"
-Enum := <STRING> [ ":" <STRING> ] [ ( "{" Form "}" ) | FormRef ]
-EnumsRef := "#" <IDENT>
-FormRef := "@" <IDENT>
+Form := <FORM>
 */
 
 //Channels := Channel ( "," Channel )*
@@ -103,71 +81,15 @@ List<Channel> channels() :
 
 //Channel := <IDENT> ":" <STRING> [ "(" Form ")" ]
 Channel channel() :
-{ Token t; Token cn; List<Field> f; Channel ch = new Channel(); }
+{ Token t; Token cn; String f; Channel ch = new Channel(); }
 {
-    t=<IDENT> ":" cn=<STRING> [ "(" f=form(null, null) {ch.form=f;} ")" ]
+    t=<IDENT> ":" cn=<STRING> [ f=form() { ch.form=f; } ]
     { ch.id=t.image; ch.name=StringUtils.unquote(cn.image); return ch;}
 }
 
-// Form := ( Field ";" )+
-List<Field> form(String parentId, String parentVal) :
-{ List<Field> l = new ArrayList(); Field field = null; }
+String form() :
+{ Token t; StringBuffer b = new StringBuffer(); }
 {
-    (field = field(parentId, parentVal) { l.add(field); } ";")+
-    { return l; }
-}
-
-//Field := <IDENT> ":" Type [ "{" Option ( "," Option )* "}" ] [ Enums | EnumsRef ]
-Field field(String parentId, String parentVal) :
-{Token t; Type ty; Map<String, String> o = new HashMap(); List<Enum> e; String er; DefaultField f = new DefaultField(); }
-{
-    t=<IDENT> ":" ty=type() [ "{" option(o) ("," option(o))* "}"] [ e=enums(t.image) { f.enumList= e; } | er=enumRef() { f.enumsRef=er; } ]
-    {f.id=t.image; f.type=ty; f.option=o; f.parentId=parentId; f.parentValue=parentVal; return f; }
-}
-
-//Type := "string" | "number" | "boolean"
-Type type() :
-{ Token t; }
-{
-    ( t="string" | t="number" | t="boolean" )
-    { return Type.getType(t.image); }
-}
-
-//Option := <IDENT> "=" <STRING>
-void option(Map<String, String> o) :
-{ Token k; Token s; }
-{
-    ( k=<IDENT> "=" s=<STRING> { o.put(k.image, StringUtils.unquote(s.image)); } )
-}
-
-//Enums := "[" Enum ( "," Enum )* "]"
-List<Enum> enums(String fieldId) :
-{ List<Enum> enums = new ArrayList(); }
-{
-    ("[" _enum(enums, fieldId) ( "," _enum(enums, fieldId) )* "]")
-    { return enums; }
-}
-
-//Enum := <STRING> [ ":" <STRING> ] [ ( "{" Form "}" ) | FormRef ]
-void _enum(List<Enum> enums, String fieldId) :
-{Token key; Token n; List<Field> f; String fr; Enum e = new Enum();}
-{
-    ( key=<STRING> [ ":" n=<STRING> { e.name=StringUtils.unquote(n.image); } ] [ ("{" f=form(fieldId, StringUtils.unquote(key.image)) "}") { e.form=f; } | fr=formRef() { e.formRef=fr; } ])
-    { e.key=StringUtils.unquote(key.image); enums.add(e); }
-}
-
-//EnumsRef := "#" <IDENT>
-String enumRef() :
-{ Token t; }
-{
-    "#" t=<IDENT>
-    { return t.image; }
-}
-
-//FormRef := "@" <IDENT>
-String formRef() :
-{ Token t; }
-{
-    "@" t=<IDENT>
-    { return t.image; }
+   <START_FORM> (t=<TEXT> { b.append( t.image );})* <END_FORM>
+   { return b.toString(); }
 }

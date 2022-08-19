@@ -1,11 +1,9 @@
 package form.ast;
 
-import java.util.List;
-
 public class Channel {
     public String id;
     public String name;
-    public List<Field> form;
+    public String form;
 
     @Override
     public String toString() {

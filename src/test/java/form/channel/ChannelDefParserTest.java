@@ -3,8 +3,10 @@ package form.channel;
 import form.channel.ChannelDefParser;
 import form.ast.Field;
 import form.ast.Channel;
+import form.parser.FormSchemaParser;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -20,11 +22,17 @@ public class ChannelDefParserTest {
 
             List<Channel> list = parser.channels();
             for(Channel ch : list) {
-//                System.out.println(ch.toString());
                 System.out.println(ch.form);
+                if (ch.form == null) continue;
+                try (InputStream sin = new ByteArrayInputStream(ch.form.getBytes())) {
+                    FormSchemaParser fsp = new FormSchemaParser(sin);
+                    List<Field> form = fsp.schema();
+                    for (Field field : form) {
+                        System.out.println(field);
+                    }
+                }
                 System.out.println("-------------------");
             }
         }
     }
-
 }
